@@ -41,7 +41,7 @@ let tablesVerified = false;
 let tablesExist = false;
 
 export function initEvolutionDb(config: EvolutionConfig): void {
-  const schema = config.schema || 'evolution_api';
+  const schema = config.schema || 'public';
   pool = new Pool({
     host: config.host,
     port: config.port,

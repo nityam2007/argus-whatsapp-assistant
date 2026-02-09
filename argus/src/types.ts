@@ -176,7 +176,7 @@ export function parseConfig(): Config {
     database: process.env.EVOLUTION_PG_DATABASE || 'evolution',
     user: process.env.EVOLUTION_PG_USER || 'postgres',
     password: process.env.EVOLUTION_PG_PASSWORD || 'postgres',
-    schema: process.env.EVOLUTION_PG_SCHEMA || 'evolution_api',
+    schema: process.env.EVOLUTION_PG_SCHEMA || 'public',
   } : undefined;
 
   return ConfigSchema.parse({

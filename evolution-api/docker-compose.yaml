@@ -1,84 +1,157 @@
-version: "3.8"
+# ============================================================
+# Evolution API — Standalone Docker Compose
+# 3 containers: evolution-api, postgres, redis
+# ============================================================
+# Usage:
+#   cd evolution-api
+#   docker compose up -d          # Start everything
+#   docker compose logs -f api    # View Evolution logs
+#   docker compose down           # Stop
+#   docker compose down -v        # Stop + delete all data
+# ============================================================
+# NOTE: This is the STANDALONE compose for Evolution API only.
+#       For the full Argus stack (Argus + Evolution + PG + Redis),
+#       use ../argus/docker-compose.yml instead.
+# ============================================================
 
 services:
-  api:
-    container_name: evolution_api
-    image: evoapicloud/evolution-api:latest
-    restart: always
-    depends_on:
-      - redis
-      - evolution-postgres
-    ports:
-      - "127.0.0.1:8080:8080"
-    volumes:
-      - evolution_instances:/evolution/instances
-    networks:
-      - evolution-net
-      - dokploy-network
-    env_file:
-      - .env
-    expose:
-      - "8080"
 
-  frontend:
-    container_name: evolution_frontend
-    image: evoapicloud/evolution-manager:latest
-    restart: always
-    ports:
-      - "3000:80"
-    networks:
-      - evolution-net
-
-  redis:
-    container_name: evolution_redis
-    image: redis:latest
-    restart: always
-    command: >
-      redis-server --port 6379 --appendonly yes
-    volumes:
-      - evolution_redis:/data
-    networks:
-      evolution-net:
-        aliases:
-          - evolution-redis
-      dokploy-network:
-        aliases:
-          - evolution-redis
-    expose:
-      - "6379"
-
-  evolution-postgres:
-    container_name: evolution_postgres
-    image: postgres:15
-    restart: always
-    env_file:
-      - .env
-    command:
-      - postgres
-      - -c
-      - max_connections=1000
-      - -c
-      - listen_addresses=*
+  # ─── 1. PostgreSQL ────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: evolution-postgres
+    restart: unless-stopped
     environment:
-      - POSTGRES_DB=${POSTGRES_DATABASE}
-      - POSTGRES_USER=${POSTGRES_USERNAME}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      POSTGRES_DB: evolution
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - evolution-net
-      - dokploy-network
-    expose:
-      - "5432"
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ─── 2. Redis ─────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: evolution-redis
+    restart: unless-stopped
+    command: redis-server --port 6379 --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── 3. Evolution API (built from source) ─────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: evolution-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      # Server
+      - SERVER_NAME=evolution
+      - SERVER_TYPE=http
+      - SERVER_PORT=8080
+      - SERVER_URL=http://localhost:8080
+      - DOCKER_ENV=true
+      # Database — container hostname "postgres", schema "public"
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://postgres:postgres@postgres:5432/evolution?schema=public
+      - DATABASE_CONNECTION_CLIENT_NAME=evolution_exchange
+      - DATABASE_SAVE_DATA_INSTANCE=true
+      - DATABASE_SAVE_DATA_NEW_MESSAGE=true
+      - DATABASE_SAVE_MESSAGE_UPDATE=true
+      - DATABASE_SAVE_DATA_CONTACTS=true
+      - DATABASE_SAVE_DATA_CHATS=true
+      - DATABASE_SAVE_DATA_LABELS=true
+      - DATABASE_SAVE_DATA_HISTORIC=true
+      - DATABASE_SAVE_IS_ON_WHATSAPP=true
+      - DATABASE_SAVE_IS_ON_WHATSAPP_DAYS=7
+      - DATABASE_DELETE_MESSAGE=true
+      # Redis — container hostname "redis"
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis:6379/6
+      - CACHE_REDIS_TTL=604800
+      - CACHE_REDIS_PREFIX_KEY=evolution
+      - CACHE_REDIS_SAVE_INSTANCES=false
+      # Auth
+      - AUTHENTICATION_API_KEY=rmd_evolution_api_key_12345
+      - AUTHENTICATION_EXPOSE_IN_FETCH_INSTANCES=true
+      # Logging
+      - LOG_LEVEL=ERROR,WARN,DEBUG,INFO,LOG,VERBOSE,DARK,WEBHOOKS,WEBSOCKET
+      - LOG_COLOR=true
+      - LOG_BAILEYS=error
+      # Webhook → Argus (adjust URL if Argus runs elsewhere)
+      - WEBHOOK_GLOBAL_ENABLED=true
+      - WEBHOOK_GLOBAL_URL=http://host.docker.internal:3000/api/webhook/whatsapp
+      - WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS=false
+      # Disable unused integrations
+      - RABBITMQ_ENABLED=false
+      - SQS_ENABLED=false
+      - WEBSOCKET_ENABLED=false
+      - OPENAI_ENABLED=false
+      - DIFY_ENABLED=false
+      - N8N_ENABLED=false
+      - EVOAI_ENABLED=false
+      - TYPEBOT_ENABLED=false
+      - CHATWOOT_ENABLED=false
+      - S3_ENABLED=false
+      - PUSHER_ENABLED=false
+      - KAFKA_ENABLED=false
+      - PROMETHEUS_METRICS=false
+      - TELEMETRY_ENABLED=false
+      # Instance settings
+      - DEL_INSTANCE=false
+      - QRCODE_LIMIT=30
+      - CONFIG_SESSION_PHONE_CLIENT=Evolution API
+      - CONFIG_SESSION_PHONE_NAME=Chrome
+      - LANGUAGE=en
+    volumes:
+      - evolution_instances:/evolution/instances
+      - evolution_store:/evolution/store
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ─── 4. Evolution Manager (dashboard UI, optional) ────────
+  manager:
+    image: evoapicloud/evolution-manager:latest
+    container_name: evolution-manager
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3100:80"
 
 volumes:
-  evolution_instances:
-  evolution_redis:
   postgres_data:
-
-networks:
-  evolution-net:
-    name: evolution-net
-    driver: bridge
-  dokploy-network:
-    external: true
+    driver: local
+  redis_data:
+    driver: local
+  evolution_instances:
+    driver: local
+  evolution_store:
+    driver: local

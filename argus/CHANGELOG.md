@@ -2,6 +2,19 @@
 
 All notable changes to Argus will be documented in this file.
 
+## [2.7.2] - 2026-02-09
+
+### Fixed — Evolution PostgreSQL Schema & Docker Compose
+
+#### Bug Fixes
+- **Evolution DB `relation does not exist`**: All queries (`Instance`, `Message`, `Chat`, `Contact`) failed because Evolution API Prisma creates tables in a named schema but Argus queries defaulted to `public`. Added `search_path` to PG pool connection options so the correct schema is resolved automatically.
+- **One-time table check**: Added `ensureTablesExist()` — queries `information_schema.tables` once on startup. If tables aren't found (e.g. Evolution hasn't run migrations yet), logs a single warning and skips all PG reads instead of spamming errors on every request.
+- **Schema consistency**: Standardized to `schema=public` everywhere (Evolution `.env`, Argus docker-compose, `evolution-db.ts` default). Added `EVOLUTION_PG_SCHEMA` env var for override.
+
+#### Docker
+- **`evolution-api/docker-compose.yaml`**: Complete rewrite — removed broken `dokploy-network` external network, removed empty `${POSTGRES_DATABASE}` vars, builds from source instead of Docker Hub image, added healthchecks, moved manager to port 3100 (avoids conflict with Argus on 3000), all env vars inline (no `env_file` dependency), disabled all unused integrations, webhook points to `host.docker.internal:3000` for local dev.
+- **`argus/docker-compose.dev.yml`**: Created — PostgreSQL + Redis only, for running Argus locally with `npm run dev`.
+
 ## [2.7.1] - 2026-02-09
 
 ### Fixed — Webhook Pipeline & Code Compliance
