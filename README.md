@@ -477,7 +477,3 @@ See [CHANGELOG.md](argus/CHANGELOG.md) for full version history.
 - Chrome Extension Manifest V3 — Browser integration
 
 ---
-
-## 📄 License
-
-Private — All rights reserved.
