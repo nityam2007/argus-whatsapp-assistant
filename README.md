@@ -55,9 +55,9 @@ Chrome Extension (Manifest V3)
 ### Docker (Recommended — works on Linux / Windows / macOS)
 
 ```bash
-git clone https://github.com/ask-anannya/Argus-DO
+git clone https://github.com/Akshat74747/argus-whatsapp-assistant
 cd whatsapp-chat-rmd-argus/argus
-cp .env.example .env          # Fill in DO_GRADIENT_MODEL_KEY + Evolution API credentials
+cp .env.example .env          # Fill in GEMINI_MODEL_KEY + Evolution API credentials
 docker compose up -d           # Starts 4 containers (builds everything from source)
 docker compose logs -f argus   # View Argus logs
 ```
@@ -174,6 +174,28 @@ whatsapp-chat-rmd-argus/
 ├── INFO.md                         # Architecture documentation
 └── README.md                       # This file
 ```
+
+---
+
+## SQLite Database
+
+Argus uses **SQLite** (`better-sqlite3`, synchronous API) as its sole database. All tables and FTS5 virtual tables are created automatically on startup.
+
+### Tables
+
+| Table | Purpose |
+|-------|---------|
+| `events` | Events/tasks/reminders extracted from WhatsApp |
+| `messages` | Raw WhatsApp messages (source of truth) |
+| `triggers` | Time and URL-based notification triggers |
+| `contacts` | Contact list with message counts |
+| `context_dismissals` | Per-URL dismissal suppression (30-minute window) |
+| `push_subscriptions` | Browser push subscription tokens |
+| `events_fts` | FTS5 virtual table over events (title, keywords, description) |
+
+### FTS5 Search
+
+`/api/context-check` and `/api/internal/search` use `ftsSearchEvents()` which runs a SQLite FTS5 `MATCH` query across `title`, `keywords`, and `description`. Results are ranked by BM25 relevance.
 
 ---
 
@@ -442,35 +464,6 @@ npm run db:reset     # Delete SQLite DB + restart
 - **DO NOT use OpenAI** — Gemini only (via OpenAI-compatible endpoint).
 - **DO NOT edit `aidata/*` or `quicksave/*`** — reference-only files.
 - SQLite + FTS5 only — no vectors, no FAISS, no embeddings.
-
----
-
-## 📝 Changelog
-
-See [CHANGELOG.md](argus/CHANGELOG.md) for full version history.
-
-### Latest: v2.7.1 (2026-02-09)
-
-**Bug Fixes:**
-- Fixed `autoSetupEvolution()` — wrong fetchInstances response format + 403 handling
-- Fixed action `"none"` swallowing messages — Gemini returning `isAction: true, action: "none"` blocked event extraction
-- Fixed dedup false positives — short titles ("Meeting") no longer substring-match longer ones ("Meeting with Nityam at 5pm")
-- Ignored/dismissed events no longer sent to Gemini as context
-- PopupTypeEnum updated to include all 8 popup types
-
-### v2.7.0 (2026-02-08)
-
-**QuickSave Context Compression:**
-- S2A filter + dense format for all Gemini prompts (~40-55% fewer tokens)
-- L2 edge detection (cross-event relationships)
-- Chat memory packets for session continuity
-
-### v2.6.5 (2026-02-07)
-
-**Insurance Accuracy (Form Mismatch):**
-- DOM form watcher detects car model on insurance sites
-- Cross-references with WhatsApp memory
-- "Fix It" button auto-fills correct value
 
 ---
 
