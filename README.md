@@ -456,15 +456,6 @@ npm run format       # Prettier formatting
 npm run db:reset     # Delete SQLite DB + restart
 ```
 
-### Key Rules
-
-- **NEVER restart the server** — it auto-restarts on rebuild. Only run `npx tsc`.
-- **ALWAYS update CHANGELOG.md** before committing (append at top).
-- **DO NOT use OpenAI** — Gemini only (via OpenAI-compatible endpoint).
-- **DO NOT edit `aidata/*` or `quicksave/*`** — reference-only files.
-- SQLite + FTS5 only — no vectors, no FAISS, no embeddings.
-
----
 
 ## 🙏 Acknowledgments
 
