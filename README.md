@@ -7,7 +7,6 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![Gemini](https://img.shields.io/badge/Gemini_3-Flash_Preview-4285F4.svg)](https://ai.google.dev/)
 [![Docker](https://img.shields.io/badge/Docker-4_containers-2496ED.svg)](https://docker.com)
-[![License](https://img.shields.io/badge/license-Private-red.svg)](LICENSE)
 
 ---
 
