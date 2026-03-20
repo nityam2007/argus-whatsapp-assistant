@@ -50,36 +50,42 @@ Chrome Extension (Manifest V3)
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
-### Prerequisites
-
-- **Docker & Docker Compose** — runs all 4 services
-- **Chrome browser** — for the extension
-- **Gemini API key** — [get one free](https://aistudio.google.com/apikey)
-
-### 1. Clone & Configure
+### Docker (Recommended — works on Linux / Windows / macOS)
 
 ```bash
-git clone https://github.com/nityam2007/argus-whatsapp-assistant.git
-cd argus-whatsapp-assistant/argus
-
-cp .env.example .env
-# Edit .env → set GEMINI_API_KEY (required, everything else has defaults)
+git clone https://github.com/ask-anannya/Argus-DO
+cd whatsapp-chat-rmd-argus/argus
+cp .env.example .env          # Fill in DO_GRADIENT_MODEL_KEY + Evolution API credentials
+docker compose up -d           # Starts 4 containers (builds everything from source)
+docker compose logs -f argus   # View Argus logs
 ```
 
-### 2. Start Services (Docker)
+> **Everything is included** — Evolution API source, QuickSave, and Argus are all in this repo. No extra downloads needed.
+
+### Local Development
+
+Pre-Requisites
 
 ```bash
-docker compose up -d --build
-
-# Check all 4 containers are running
-docker compose ps
-
-# View logs
-docker compose logs -f argus          # Argus server
-docker compose logs -f evolution-api  # WhatsApp bridge
+cd argus
+npm install
+cp .env.example .env           # Fill in GEMINI_MODEL_KEY + Evolution API credentials
 ```
+Start the evolution api first, and then creeat an instance at http://localhost:8080/manager
+
+```bash
+cd evolution-api
+npm run dev:server
+```
+Once evolution api starts up, start argus
+
+```bash
+cd argus
+npm run dev
+```
+Open chrome extensions manager and load unpacked the extension folder at argus/extension
 
 | Container | Port | Purpose |
 |-----------|------|---------|
